@@ -74,6 +74,10 @@ class write_buffer:
         self.free_space = self.total_size_elems
 
     #
+    def set_backing_buffer(self, backing_buffer):
+        self.backing_buffer = backing_buffer
+
+    #
     def reset(self):
         self.total_size_bytes = 128
         self.word_size = 1

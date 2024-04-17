@@ -117,6 +117,21 @@ class double_buffered_scratchpad:
         self.filter_buf.set_fetch_matrix(filter_prefetch_mat)
 
     #
+    def set_ifmap_backing_buffer(self,
+                                 backing_buf_obj):
+        self.ifmap_buf.set_backing_buffer(backing_buffer=backing_buf_obj)
+
+    #
+    def set_filter_backing_buffer(self,
+                                  backing_buf_obj):
+        self.filter_buf.set_backing_buffer(backing_buffer=backing_buf_obj)
+
+    #
+    def set_ofmap_backing_buffer(self,
+                                 backing_buf_obj):
+        self.ofmap_buf.set_backing_buffer(backing_buffer=backing_buf_obj)
+
+    #
     def reset_buffer_states(self):
 
         self.ifmap_buf.reset()
@@ -149,7 +164,7 @@ class double_buffered_scratchpad:
         return out_cycles_arr_np
 
     #
-    def service_memory_requests(self, ifmap_demand_mat, filter_demand_mat, ofmap_demand_mat):
+    def service_memory_requests(self, ifmap_demand_mat, filter_demand_mat, ofmap_demand_mat, nop_latency):
         assert self.params_valid_flag, 'Memories not initialized yet'
 
         ofmap_lines = ofmap_demand_mat.shape[0]
@@ -167,7 +182,7 @@ class double_buffered_scratchpad:
         pbar_disable = not self.verbose
         for i in tqdm(range(ofmap_lines), disable=pbar_disable):
 
-            cycle_arr = np.zeros((1,1)) + i + self.stall_cycles
+            cycle_arr = np.zeros((1,1)) + i + self.stall_cycles + nop_latency
 
             ifmap_demand_line = ifmap_demand_mat[i, :].reshape((1,ifmap_demand_mat.shape[1]))
             ifmap_cycle_out = self.ifmap_buf.service_reads(incoming_requests_arr_np=ifmap_demand_line,
@@ -197,6 +212,7 @@ class double_buffered_scratchpad:
 
         self.ofmap_buf.empty_all_buffers(ofmap_serviced_cycles[-1])
 
+
         # Prepare the traces
         ifmap_services_cycles_np = np.asarray(ifmap_serviced_cycles).reshape((len(ifmap_serviced_cycles), 1))
         self.ifmap_trace_matrix = np.concatenate((ifmap_services_cycles_np, ifmap_demand_mat), axis=1)
@@ -208,8 +224,23 @@ class double_buffered_scratchpad:
         self.ofmap_trace_matrix = np.concatenate((ofmap_services_cycles_np, ofmap_demand_mat), axis=1)
         self.total_cycles = int(ofmap_serviced_cycles[-1][0])
 
+        #Adding NOP Latency Cycles to trace
+        nop_latency_matrix = np.ones((int(nop_latency), self.ifmap_trace_matrix.shape[1])) * -1
+        #nop_latency_matrix[:][0] = np.reshape(np.array(range(int(nop_latency))).shape[1],1)
+        for i in range(int(nop_latency)):
+            nop_latency_matrix[i][0] = i+1
+        
+        self.ifmap_trace_matrix = np.concatenate((nop_latency_matrix, self.ifmap_trace_matrix), axis=0)
+        self.filter_trace_matrix = np.concatenate((nop_latency_matrix, self.filter_trace_matrix), axis=0)
+
+        for i in range(int(nop_latency)):
+            nop_latency_matrix[i][0] = i
+
+        self.ofmap_trace_matrix = np.concatenate((nop_latency_matrix, self.ofmap_trace_matrix), axis=0)
+
         # END of serving demands from memory
         self.traces_valid = True
+        return ifmap_hit_latency
 
     # This is the trace computation logic of this memory system
     # Anand: This is too complex, perform the serve cycle by cycle for the requests

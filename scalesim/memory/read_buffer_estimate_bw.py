@@ -89,6 +89,10 @@ class ReadBufferEstimateBw:
         self.params_set_flag = True
 
     #
+    def set_backing_buffer(self,backing_buffer):
+        self.backing_buffer = backing_buffer
+
+    #
     def service_reads(self, incoming_requests_arr_np, incoming_cycles_arr):
         assert self.params_set_flag, 'Parameters are not set yet'
         assert incoming_cycles_arr.shape[0] == incoming_requests_arr_np.shape[0], 'Incoming cycles and requests dont match'

@@ -71,6 +71,10 @@ class read_buffer:
         self.prefetch_buf_size = self.total_size_elems - self.active_buf_size
 
     #
+    def set_backing_buffer(self,backing_buffer):
+        self.backing_buffer = backing_buffer
+
+    #
     def reset(self): # TODO: check if all resets are working propoerly
         # Buffer properties: User specified
         self.total_size_bytes = 128
